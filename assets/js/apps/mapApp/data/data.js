@@ -27,6 +27,11 @@ define ([
             return deferred.promise();
         },
         saveLayer: function (geoJson, layerId, user) {
+            //strip "local"  and "layerId" from the properteis
+            $.each(geoJson.features, function(i,v) {
+                delete v.properties.mto.local;
+                
+            });
             var deferred = $.Deferred();
             var baseUrl = dispatch.request("getBaseUrl");
             var params = {

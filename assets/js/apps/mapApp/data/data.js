@@ -25,8 +25,6 @@ define ([
                 dataType: "json"
             });
             return deferred.promise();
-                    
-            
         },
         saveLayer: function (geoJson, layerId, user) {
             var deferred = $.Deferred();

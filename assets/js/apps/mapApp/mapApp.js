@@ -2,6 +2,7 @@ define ([
     'common/dispatch',
     'apps/mapApp/data/data',
     'text!apps/mapApp/templates/lMapControl.tpl',
+    'tpl!apps/mapApp/templates/popupTemplate.tpl',
     'backbone',
     'leaflet',    
     'leaflet.draw',
@@ -9,6 +10,7 @@ define ([
     dispatch,
     data,
     lMapControl,
+    popupTemplate,
     Backbone,
     L
 
@@ -108,7 +110,6 @@ define ([
             data.createLayer(1).done( function (data) {
                 console.log("data:", data);
             });
-            
         },
         loadMap: function (mapId, user) {
             var self = this;
@@ -122,27 +123,12 @@ define ([
             $.get(baseUrl + "api/maps/" + mapId, user.toJSON(), function (data){                
                 success: {
                     self.mapData = data;
-                    $.each(data.layersData, function (i, v) {
-                        //handle the case of an empty feature collection
-                        console.log("v.geoJson:", v.geoJson.features.length);
-                        if (v.geoJson.features.length == 0) {
-                            self.overlays[v.id] = new L.FeatureGroup();
-                            self.map.addLayer(self.overlays[v.id]);
-                            
-                        } else {
-                            self.overlays[v.id] = L.geoJson(v.geoJson, {
-                                onEachFeature: function (feature, layer) {
-                                }
-                            }).addTo(self.map);
-                        }
-                    });
+                    self.reRenderFromMapData();
                 }
             },"json");
         },
         loadDrawControl: function () {
             var self = this; 
-            console.log("self:overlays", self.overlays);
-            
             //remove existing drawControl, if there is one
             if (self.drawControl) {
                 self.map.removeControl(self.drawControl);
@@ -154,18 +140,26 @@ define ([
                 }
             });
             self.map.on('draw:created', function (e) {
-                var layer = e.layer; 
-                self.overlays[self.editLayer].addLayer(layer);
+                //add properties
+                //see: http://stackoverflow.com/questions/29736345/adding-properties-to-a-leaflet-layer-that-will-become-geojson-options
+                var layer = e.layer,
+                    feature = layer.feature = layer.feature || {}; // Initialize feature
+
+                feature.type = feature.type || "Feature"; // Initialize feature.type
+                var props = feature.properties = feature.properties || {}; // Initialize feature.properties
+                props.mto = {
+                    name: "name",
+                    desc: "desc"
+                };
+                self.overlays[self.editLayer].addLayer(layer);                 
+                
+                //save off to db
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
-                    console.log("ajax done", data);
-                    console.log("self.mapData", self.mapData);
                     //update local map data
                     self.mapData.layersData[data.rLayer.id] = data.rLayer;
                     //rerender map
                     self.render();
-                    
-                    
                 });
             });                    
             self.map.on('draw:edited', function (e) {
@@ -180,23 +174,21 @@ define ([
         },
         render: function () {
             var self = this;
-            //remove all layers
+            //remove all layers (that are features) from present map
             $.each(self.overlays, function (i, v) {
                 if (v && v._layers) {
                     $.each(v._layers, function (ii, vv) {
                         self.map.removeLayer(vv);
                     });
-                    
                 }
             });
-            //render all layers
+            
+            
+            //reset overlays variable
             self.overlays = [];
-            $.each(self.mapData.layersData, function (i, v) {
-                self.overlays[v.id] = L.geoJson(v.geoJson, {
-                    onEachFeature: function (feature, layer) {
-                    }
-                }).addTo(self.map);
-            });
+ 
+            self.reRenderFromMapData();
+            
             //reload draw control
             if (self.drawControl) {
                 self.map.removeControl(self.drawControl);
@@ -209,7 +201,35 @@ define ([
             });
             self.map.addControl(self.drawControl);           
             
+        },
+        reRenderFromMapData: function () {
+            var self = this;
+            $.each(self.mapData.layersData, function (i, v) {
+                //handle the case of an empty feature collection
+                if (v.geoJson.features.length == 0) {
+                    self.overlays[v.id] = new L.FeatureGroup();
+                    self.map.addLayer(self.overlays[v.id]);
+                } else {
+                   //we want to attach the array position to each feature, i is the counter
+                    var i = 0;
+                    self.overlays[v.id] = L.geoJson(v.geoJson, {
+                        //iterate through each feature, add popup, do what needs to be done
+                        //feature is the geoJson Object
+                        //layer is the leaflet class
+                        
+                        onEachFeature: function (feature, layer) {
+                            feature.properties.mto.arrayPosition = i;
+                            feature.properties.mto.layerId = v.id;
+                            i += 1;
+                            console.log("feature:", feature, "layer", layer);
+                            var popupHtml = (popupTemplate(feature.properties.mto));
+                            layer.bindPopup(popupHtml);
+                        }
+                    }).addTo(self.map); 
+                }
+            });                   
         }
+
     }
     
     return mapApp;

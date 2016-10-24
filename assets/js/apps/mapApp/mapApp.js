@@ -13,15 +13,21 @@ define ([
     popupTemplate,
     Backbone,
     L
-
 ) {
     var mapApp = {
-        
+        //data is the data function object, loaded at initialize()
+        data: {},
+        //user is a Backbone Model, loaded at initialize();
         user: {},
+        //map is the actual Leaflet map object
         map: {},
+        //mapData is a copy of the json object returned from db
         mapData: {},
+        //overlays is an array of Leaflet layers, populated as the map renders in renderMapFromData()
         overlays: [],
-        drawcontrol: undefined,
+        //drawControlis the leaflet.draw object itself
+        drawControl: undefined,
+        //editLayer, int, the layerId active in the editor
         editLayer: undefined,
         
         initialize: function () {
@@ -48,7 +54,8 @@ define ([
                 }).setView( mapCenter, mapZoom );
             //L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {                
             //L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{ 
-            L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', {
+            var jjj = L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{
+            //L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', {
                 attribution: 'attributes here'
             }).addTo(self.map);            
         },
@@ -64,7 +71,8 @@ define ([
                     container.style.position = 'absolute';
                     container.style.top = '0px',
                     container.style.left = '50px',
-                    container.style.width = '300px'
+                    container.style.width = '300px';
+                    //load from the template
                     container.innerHTML = lMapControl; 
                     return container;
                 },
@@ -77,8 +85,8 @@ define ([
                 $(this).closest(".dropdown-menu").prev().dropdown("toggle");
                 //console.log("clicked", e.target.id);
                 switch(e.target.id){
-                    case "editLayer1":
-                        self.editLayer = 7;
+                    case "editLayer13":
+                        self.editLayer = 13;
                         self.loadDrawControl();
                     break;
                     case "editLayer2":
@@ -89,8 +97,8 @@ define ([
                         console.log("toggleDrawControl");    
                     
                     break;
-                    case "loadMap2":
-                        self.loadMap(2, self.user);
+                    case "loadMap9":
+                        self.loadMap(9, self.user);
                     break;
                     case "initializeLayersControl":
                         self.initializeLayersControl();
@@ -102,6 +110,12 @@ define ([
                     case "createLayer":
                         self.createLayer();
                     break;
+                    case "deactivateEdit":
+                        self.removeEditor();
+                    break;
+                    case "createMap":
+                        self.createMap();
+                    break;
                 };
                 return false;
             });            
@@ -110,6 +124,30 @@ define ([
             data.createLayer(1).done( function (data) {
                 console.log("data:", data);
             });
+        },
+        createMap: function () {
+            var self = this;
+            console.log("createMap() fires");
+            
+            //temp
+            var name = "new map";
+            var description = "new map description";
+            var mapCenter = self.map.getCenter();
+            var newMapZoom = self.map.getZoom();
+            
+            var newMapCentroid = {
+                type: "POINT",
+                coordinates: [
+                    self.map.getCenter().lng,
+                    self.map.getCenter().lat
+                ]
+            };
+            console.log(newMapCentroid, newMapZoom);
+            data.createMap(self.user, name, description, newMapCentroid, newMapZoom).done(function (data) {
+                console.log("map create data:", data);
+            });
+            
+            
         },
         loadMap: function (mapId, user) {
             var self = this;
@@ -123,11 +161,13 @@ define ([
             $.get(baseUrl + "api/maps/" + mapId, user.toJSON(), function (data){                
                 success: {
                     self.mapData = data;
-                    self.reRenderFromMapData();
+                    self.renderFromMapData();
                 }
             },"json");
         },
         loadDrawControl: function () {
+            var self = this;
+            console.log("self.editLayer", self.editLayer, "self.drawControl", self.drawControl);
             var self = this; 
             //remove existing drawControl, if there is one
             if (self.drawControl) {
@@ -149,7 +189,8 @@ define ([
                 var props = feature.properties = feature.properties || {}; // Initialize feature.properties
                 props.mto = {
                     name: "name",
-                    desc: "desc"
+                    desc: "desc",
+                    local: {}
                 };
                 self.overlays[self.editLayer].addLayer(layer);                 
                 
@@ -159,7 +200,7 @@ define ([
                     //update local map data
                     self.mapData.layersData[data.rLayer.id] = data.rLayer;
                     //rerender map
-                    self.render();
+                    self.renderAfterEdit();
                 });
             });                    
             self.map.on('draw:edited', function (e) {
@@ -168,11 +209,26 @@ define ([
             }); 
             self.map.on('draw:deleted', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
-                self.data.saveLayer(rGeoJson, self.editLayer, self.user);                        
+                self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
+                    //update local map data
+                    self.mapData.layersData[data.rLayer.id] = data.rLayer;
+                    //rerender map
+                    self.renderAfterEdit();                 
+                });                       
             });
             self.map.addControl(self.drawControl);
         },
-        render: function () {
+        removeEditor: function () {
+            var self = this;
+            //remove the control
+            if (self.drawControl) {
+                self.map.removeControl(self.drawControl);
+                self.drawControl = undefined;
+            }; 
+            //set the property
+            self.editLayer = undefined;            
+        },
+        renderAfterEdit: function () {
             var self = this;
             //remove all layers (that are features) from present map
             $.each(self.overlays, function (i, v) {
@@ -183,11 +239,10 @@ define ([
                 }
             });
             
-            
             //reset overlays variable
             self.overlays = [];
  
-            self.reRenderFromMapData();
+            self.renderFromMapData();
             
             //reload draw control
             if (self.drawControl) {
@@ -202,7 +257,7 @@ define ([
             self.map.addControl(self.drawControl);           
             
         },
-        reRenderFromMapData: function () {
+        renderFromMapData: function () {
             var self = this;
             $.each(self.mapData.layersData, function (i, v) {
                 //handle the case of an empty feature collection
@@ -218,18 +273,26 @@ define ([
                         //layer is the leaflet class
                         
                         onEachFeature: function (feature, layer) {
-                            feature.properties.mto.arrayPosition = i;
-                            feature.properties.mto.layerId = v.id;
+                            //local is only used client side for each feature
+                            //it is stripped away from db saves
+                            feature.properties.mto.local = {};
+                            feature.properties.mto.local.arrayPosition = i;
+                            feature.properties.mto.local.layerId = v.id;
                             i += 1;
-                            console.log("feature:", feature, "layer", layer);
                             var popupHtml = (popupTemplate(feature.properties.mto));
                             layer.bindPopup(popupHtml);
                         }
                     }).addTo(self.map); 
                 }
-            });                   
+            });
+            //test - render the envelope
+/*             var bounds2 = [[38.56803,-109.54347],[38.58286163241,-109.56373214722]];
+            self.overlays['mapEnvelope'] = L.geoJson(self.mapData.mapData.envelope, {
+                color: "#ff7800",
+                weight: 1
+            }).addTo(self.map);
+            console.log("s.o",self.overlays); */
         }
-
     }
     
     return mapApp;

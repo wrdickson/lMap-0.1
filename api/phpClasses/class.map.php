@@ -51,14 +51,14 @@ class Map {
                 try {
                     $this->envelope = $this->wktToJson($obj->envelope);
                 } catch (Exception $e) {
-                    $this->envelope = "nada";
+                    $this->envelope = 0;
                 }
                 try {
                     $this->centroid = $this->wktToJson($obj->centroid);
                 } catch (Exception $e) {
-                    $this->centroid = "nada";
+                    $this->centroid = 0;
                 }
-                $this->area = $obj->area;
+                $this->area = $obj->area; 
                 $this->zoom = $obj->zoom;
                 $this->owner = $obj->owner;
                 $this->name = $obj->name;
@@ -67,6 +67,28 @@ class Map {
                 $this->added = $obj->added;
                 $this->modified = $obj->modified;
             }
+            //now calculate centroid/envelope/area
+            $response = $this->calculateEnvelopeCentroidArea();
+            $a = geoPHP::load($response['envelope']);
+            //handle empty geojson or just a point
+            if($a != true) {
+                $this->envelope = 0;
+            } else {
+                $this->envelope = $a->out('json');
+            }
+            $b = geoPHP::load($response['centroid']);
+            if($b != true) {
+                $this->centroid = 0;
+            } else {
+                $this->centroid = $b->out('json');
+            };
+            $this->area = $response['area'];
+            //$this->test = $response;
+            
+            //debug  we are hitting the db too many times here
+            //BUT  we want to update the centroid/envelope/area every time we load the map
+            //  since the geoJson data on the associated arrays may have changed
+            $this->tmpUpdate();
     }
     
     public function calculateEnvelopeCentroidArea() {
@@ -103,7 +125,8 @@ class Map {
         $mapArr['description'] = $this->description;
         $mapArr['layers'] = $this->layers;
         $mapArr['added'] = $this->added;
-        $mapArr['modified'] = $this->modified;        
+        $mapArr['modified'] = $this->modified;
+        //$mapArr['test'] = $this->test;
         return $mapArr;
     }
     

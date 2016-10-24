@@ -66,7 +66,10 @@ public static function insertMap($owner, $json, $name, $desc){
 //@param $envelope -- a wkt polygon (generated from geoPHP->envelope();
 public static function calculateAreaFromEnvelopeWkt($envelope){
     $k = geoPHP::load($envelope);
-
+    //empty feature or just a point
+    if($k == false) {
+        return 0;
+    }
     $envelopeJson = $k->out('json');
     $env = json_decode($envelopeJson, true);
     $points = array();
@@ -110,7 +113,7 @@ use the geoPHP class to calculate the centroid of a geoJson collection
 public static function calculateCentroidJson2Wkt($json){
 	$mJson = geoPHP::load($json, "json");
     //handle an empty geojson object 
-    if($mJson == false) {
+    if($mJson != true) {
         return null;
     };
 	$mCentroid = $mJson->centroid();
@@ -151,7 +154,7 @@ use the geoPHP class to calculate the envelope of a geoJson collection
 public static function calculateEnvelopeJson2Wkt($json){
 	$mJson = geoPHP::load($json, "json");
     //handle an empty geojson object
-    if ($mJson == false) {
+    if ($mJson != true) {
         return null;
     }
 	$mEnvelope = $mJson->envelope();
@@ -171,21 +174,18 @@ public static function calculateEnvelopeWkt2Wkt($wkt){
 	return $wktEnvelope;	
 }
 
-public static function createBlankMap($owner, $centroid, $envelope, $mapZoom, $mapName, $mapDesc){
+public static function createBlankMap($owner, $centroid, $zoom, $name, $description, $layers){
 	//TODO validate
-	
-	//it's an empty map, so pass an empty object as the json string
-	$json = '{"type":"FeatureCollection","features":[]}';
+	$c = geoPHP::load(json_encode($centroid), "json");
+    $centroidWkt = $c->out('wkt');
 	$pdo = DataConnecter::getConnection();
-    //TODO deal with map_layers, map_has_legend, and map_legend fields . . . 
-	$stmt = $pdo->prepare("INSERT INTO maps (map_envelope, map_centroid, map_zoom, map_owner, map_json, map_name, map_desc, date_added, date_modified) VALUES ( GeomFromText(:envelope), GeomFromText(:centroid), :zoom, :owner, :json, :name, :desc, NOW(), NOW() )");
-	$stmt->bindParam(":envelope",$envelope,PDO::PARAM_STR);
-	$stmt->bindParam(":centroid",$centroid,PDO::PARAM_STR);
-	$stmt->bindParam(":zoom",$mapZoom,PDO::PARAM_INT);
+	$stmt = $pdo->prepare("INSERT INTO maps (zoom, centroid, owner, name, description, layers, added, modified) VALUES ( :zoom, GeomFromText(:centroid), :owner, :name, :desc, :layers, NOW(), NOW() )");
+	$stmt->bindParam(":zoom",$zoom,PDO::PARAM_INT);
+    $stmt->bindParam(":centroid",$centroidWkt,PDO::PARAM_STR);
 	$stmt->bindParam(":owner",$owner,PDO::PARAM_INT);
-	$stmt->bindParam(":json",$json,PDO::PARAM_STR);
-	$stmt->bindParam(":name",$mapName,PDO::PARAM_STR);
-	$stmt->bindParam(":desc",$mapDesc,PDO::PARAM_STR);
+	$stmt->bindParam(":name",$name,PDO::PARAM_STR);
+	$stmt->bindParam(":desc",$description,PDO::PARAM_STR);
+    $stmt->bindParam(":layers",$layers,PDO::PARAM_STR);
 	$k = $stmt->execute();
 	$insertId = $pdo->lastInsertId();
 	return $insertId;	

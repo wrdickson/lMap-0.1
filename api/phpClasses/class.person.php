@@ -118,7 +118,7 @@ class Person {
         return $result;
     }
 
-    public function verify_key($key1){
+    public function verifyKey($key1){
         if($key1 == $this->key){
             $this->updateActivity();
             return true;

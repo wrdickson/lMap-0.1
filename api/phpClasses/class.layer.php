@@ -51,7 +51,7 @@ class Layer {
        // $stmt = $pdo->prepare("INSERT INTO layers (owner) VALUES (1)");
         $ii = $stmt->execute();
         $insertId = $pdo->lastInsertId();
-        return $ii;        
+        return $insertId;        
     }
     
     public function dumpArray() {
@@ -68,32 +68,49 @@ class Layer {
         return $layerArr;       
     }
     
-    //TODO - this should probably not be on the layer object def . . . 
     public static function updateLayer ($layer) {
-            //TODO - validate
+            //TODO - validate user
             $layerId = (int) $layer['id'];
             $owner = (int) $layer['owner'];
             $name = $layer['name'];
             $description = $layer['description'];
+            //it's named 'geoJson', but it's a php array in this context
             $geoJson = json_encode($layer['geoJson']);
             //calculate envelope (wkt)
             $envelope = MapUtil::calculateEnvelopeJson2Wkt(json_encode($layer['geoJson']));
             $centroid = MapUtil::calculateCentroidJson2Wkt(json_encode($layer['geoJson']));
             $pdo = DataConnecter::getConnection();
             //handle slashes??
-            $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = GeomFromText(:env), centroid = GeomFromText(:cent), dateModified = NOW() WHERE id = :id");
-            $stmt->bindParam(":description", $description, PDO::PARAM_STR);
-            $stmt->bindParam(":name", $name, PDO::PARAM_STR);
-            $stmt->bindParam(":owner", $owner, PDO::PARAM_STR);
-            $stmt->bindParam(":geoJson", $geoJson, PDO::PARAM_STR);
-            $stmt->bindParam(":env", $envelope, PDO::PARAM_STR);
-            $stmt->bindParam(":cent", $centroid, PDO::PARAM_STR);
-            $stmt->bindParam(":id", $layerId, PDO::PARAM_INT);
-            $result = $stmt->execute();
-            if ($result == true) {
-                return true;
+            //handle empty layer where envelope and centroid return null
+            if($envelope != null && $centroid != null) {
+                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = GeomFromText(:env), centroid = GeomFromText(:cent), dateModified = NOW() WHERE id = :id");
+                $stmt->bindParam(":description", $description, PDO::PARAM_STR);
+                $stmt->bindParam(":name", $name, PDO::PARAM_STR);
+                $stmt->bindParam(":owner", $owner, PDO::PARAM_STR);
+                $stmt->bindParam(":geoJson", $geoJson, PDO::PARAM_STR);
+                $stmt->bindParam(":env", $envelope, PDO::PARAM_STR);
+                $stmt->bindParam(":cent", $centroid, PDO::PARAM_STR);
+                $stmt->bindParam(":id", $layerId, PDO::PARAM_INT);
+                $result = $stmt->execute();
+                if ($result == true) {
+                    return true;
+                } else {
+                    return false;
+                }
             } else {
-                return false;
+                //here we put null into centroid and envelope, since it's an empty (or error??) geoJson object
+                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = null, centroid = null, dateModified = NOW() WHERE id = :id");
+                $stmt->bindParam(":description", $description, PDO::PARAM_STR);
+                $stmt->bindParam(":name", $name, PDO::PARAM_STR);
+                $stmt->bindParam(":owner", $owner, PDO::PARAM_STR);
+                $stmt->bindParam(":geoJson", $geoJson, PDO::PARAM_STR);
+                $stmt->bindParam(":id", $layerId, PDO::PARAM_INT);
+                $result = $stmt->execute();
+                if ($result == true) {
+                    return true;
+                } else {
+                    return false;
+                }
             }
     }    
     

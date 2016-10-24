@@ -6,6 +6,7 @@ class Logger {
         $stmt = $pdo->prepare("SELECT * FROM users WHERE user_name = :username");
         $stmt->bindParam(":username", $testUsername, PDO::PARAM_STR);
         $stmt->execute();
+        //TODO again, php manual says rowCount() is not reliable
         if($stmt->rowCount() > 0){
             return true;
         }else{
@@ -28,8 +29,6 @@ class Logger {
         $stmt->execute();
         //TODO rowCount() is unreliable on a SELECT statement!  see php5 manual  http://php.net/manual/en/pdostatement.rowcount.php
         $returnArr['pass'] = $stmt->rowCount();
-        
-        
         if($returnArr['pass'] > 0){
             $result = $stmt->fetch(PDO::FETCH_OBJ);
             if($result->id != null){
@@ -123,7 +122,7 @@ class Logger {
         $response = array();
         
         $iUser = new Person( $id);
-        $keyPassed = $iUser->verify_key($key);
+        $keyPassed = $iUser->verifyKey($key);
         $response['user'] = $iUser->dumpArray();
         $response['keyPassed'] = $keyPassed; 
         
@@ -185,6 +184,19 @@ class Logger {
         $loginDateSuccess = $stmt->rowCount();
         $stmt = null;
         return $loginDateSuccess;
+    }
+    
+    //@param $user   array expecting members mUserId, mUserName, mUserPerm, mUserKey
+    public static function verifyUser($user) {
+        //validate key
+        $iPerson = new Person($user['mUserId']);
+        $keyVerified = $iPerson->verifyKey($user['mUserKey']);
+        
+        //check session data
+        
+        //debug
+        return true;
+        
     }
 }
 ?>

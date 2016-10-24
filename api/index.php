@@ -26,7 +26,7 @@ $app->post('/users/', 'addUser');
 $app->post('/users/:id', 'updateUser');
 
 $app->get('/maps/:id', 'getMap');
-
+$app->post('/maps/', 'addMap');
 
 $app->get('/test/:id', 'getTest');
 $app->put('/test/:id',  'updateTest');
@@ -50,15 +50,49 @@ function addLayer() {
     
 }
 
+function addMap() {
+    //TODO validate
+    
+	$app = \Slim\Slim::getInstance();
+	$params = json_decode($app->request->getBody(), true);
+	$response['params'] = $params;
+	foreach($params as $key=>$value){
+		$response[$key] = $value;
+	} 
+
+    
+    //build a blank layer (for the blank map)
+    $newLayerId = Layer::createLayer($params['user']['mUserId']);
+    $response['newLayerId'] = $newLayerId;
+    
+    $response['newMapId'] = MapUtil::createBlankMap($params['user']['mUserId'], $params['centroid'], $params['zoom'], $params['name'], $params['description'], $newLayerId);
+    //now load up the new map . . . 
+    $newMap = new Map($response['newMapId']);
+    $response['newMap'] = $newMap->dumpArray();
+
+    
+    print json_encode($response);    
+}
+
+
 function updateLayer ($id) {
 	$app = \Slim\Slim::getInstance();
-	//this is the key . . .it's json object coming across
+
+	//this is the key . . .it's json string coming across
 	$params = json_decode($app->request->getBody(), true);
     $response['$id'] = $id;
 	$response['params'] = $params;
 	foreach($params as $key=>$value){
 		$response[$key] = $value;
 	}
+    
+    //verify that this user has permission to edit this layer
+    
+    //verify user
+    $userVerify = Logger::verifyUser($params['user']);
+    $response['userVerified'] = $userVerify;
+    
+    
     
     $iLayer = new Layer($id);
     $response['origLayer'] = $iLayer->dumpArray();

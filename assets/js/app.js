@@ -48,6 +48,14 @@ define([
             //hide it to start
             $("#spinner").css("display", "none");
 		},
+        
+        /**
+        * Animate a popup message to the user
+        * @param {string} messege - string or html string to be displayed
+        * @param {string} sender - optional- the id of the sending element.  
+        *      class"disabled" will be added until animation is finished
+        *      important! to use this or animations can get tangled with multiple button pushes, etc
+        */
         popupMessage: function (message, sender) {
             console.log("ppm fires", message, sender);
             $(sender).addClass("disabled");

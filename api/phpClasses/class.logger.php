@@ -188,15 +188,31 @@ class Logger {
     
     //@param $user   array expecting members mUserId, mUserName, mUserPerm, mUserKey
     public static function verifyUser($user) {
-        //validate key
+        $verified = false;
+
         $iPerson = new Person($user['mUserId']);
-        $keyVerified = $iPerson->verifyKey($user['mUserKey']);
         
-        //check session data
-        
-        //debug
-        return true;
-        
+        //verify that this IS the same user as Session data
+        if($_SESSION['mUserId'] == $iPerson->get_id()){
+            $verified = true;
+        } else {
+            $verified = false;
+        };
+        //validate key from the http request        
+        $verified = $iPerson->verifyKey($user['mUserKey']);
+        //make sure http user key is same as session key
+        if($_SESSION['mUserKey'] == $iPerson->get_key()){
+            $verifed = true;
+        } else {
+            $verified = false;
+        }
+        //make sure the permission is correct
+        if($_SESSION['mUserPerm'] == $iPerson->get_permission()) {
+            $verified = true;
+        } else {
+            $verified = false;
+        };
+        return $verified;
     }
 }
 ?>

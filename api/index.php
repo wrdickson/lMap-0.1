@@ -85,27 +85,41 @@ function updateLayer ($id) {
 	foreach($params as $key=>$value){
 		$response[$key] = $value;
 	}
+    //instantiate the layer
+    $iLayer = new Layer($id);
     
     //verify that this user has permission to edit this layer
+    if($iLayer->owner == $params['user']['mUserId']) {
+        $userOwnsLayer = true;
+    } else {
+        $userOwnsLayer = false;
+    };
+    
+    $response['userOwnsLayer'] = $userOwnsLayer;
     
     //verify user
     $userVerify = Logger::verifyUser($params['user']);
     $response['userVerified'] = $userVerify;
     
+    if($userVerify == true && $userOwnsLayer == true) {
+        $response['origLayer'] = $iLayer->dumpArray();
+        $iLayer->geoJson = $params['geoJson'];
+        
+        $response['newGeoJson'] = $params['geoJson'];
+        $response['update'] = $iLayer->updateLayerJson(json_encode($iLayer->geoJson));
+        
+        //return the updated layer
+        $updatedLayer = new Layer($id);
+        $response['updatedLayer'] = $updatedLayer->dumpArray();
+        
+        print json_encode($response);        
+    } else {
+        $app->response->setStatus(403);
+        print json_encode($response);
+    }
     
-    
-    $iLayer = new Layer($id);
-    $response['origLayer'] = $iLayer->dumpArray();
-    $iLayer->geoJson = $params['geoJson'];
-    
-    $response['gJ'] = $params['geoJson'];
-    $response['update'] = $iLayer->updateLayerJson(json_encode($iLayer->geoJson));
-    
-    //return the layer
-    $rLayer = new Layer($id);
-    $response['rLayer'] = $rLayer->dumpArray();
-	
-	print json_encode($response);
+
+
 }
 
 function getMap($id){

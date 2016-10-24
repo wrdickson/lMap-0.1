@@ -48,8 +48,9 @@ define ([
             var self = this;
             var mapCenter = [38.57, -109.54];
             var mapZoom = 14;
+            $("#contentMain").html("<div id='map'></div>");
             
-            this.map = L.map('contentMain', {
+            this.map = L.map('map', {
                     //drawControl: true
                 }).setView( mapCenter, mapZoom );
             //L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {                
@@ -205,7 +206,9 @@ define ([
             });                    
             self.map.on('draw:edited', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
-                self.data.saveLayer(rGeoJson, self.editLayer, self.user);
+                self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
+                    console.log("response from layer save:", data);
+                });;
             }); 
             self.map.on('draw:deleted', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();

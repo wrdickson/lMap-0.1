@@ -29,6 +29,8 @@ define ([
         drawControl: undefined,
         //editLayer, int, the layerId active in the editor
         editLayer: undefined,
+        selectedLayer: undefined,
+        selectedFeatureArrayPos: undefined,
         
         initialize: function () {
             var self = this;
@@ -90,7 +92,7 @@ define ([
                         self.editLayer = 13;
                         self.loadDrawControl();
                     break;
-                    case "editLayer2":
+                    case "editLayer8":
                         self.editLayer = 8;
                         self.loadDrawControl();
                     break;
@@ -199,7 +201,7 @@ define ([
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
                     //update local map data
-                    self.mapData.layersData[data.rLayer.id] = data.rLayer;
+                    self.mapData.layersData[data.updatedLayer.id] = data.updatedLayer;
                     //rerender map
                     self.renderAfterEdit();
                 });
@@ -208,13 +210,18 @@ define ([
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
                     console.log("response from layer save:", data);
+                    //rerender just to keep other data dependent things updated . . .
+                    self.mapData.layersData[data.updatedLayer.id] = data.updatedLayer;
+                    //rerender map
+                    self.renderAfterEdit();                    
+                    
                 });;
             }); 
             self.map.on('draw:deleted', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
                     //update local map data
-                    self.mapData.layersData[data.rLayer.id] = data.rLayer;
+                    self.mapData.layersData[data.updatedLayer.id] = data.updatedLayer;
                     //rerender map
                     self.renderAfterEdit();                 
                 });                       
@@ -262,24 +269,27 @@ define ([
         },
         renderFromMapData: function () {
             var self = this;
+            //iterate through the layers
             $.each(self.mapData.layersData, function (i, v) {
+                console.log("layerId @ render:", i);
+                //add a button to layers select dropdown
+                $("#layersSelect").append("<li><a href='javascript:void(0)'>" + i + "</a></li>");
                 //handle the case of an empty feature collection
                 if (v.geoJson.features.length == 0) {
                     self.overlays[v.id] = new L.FeatureGroup();
                     self.map.addLayer(self.overlays[v.id]);
                 } else {
                    //we want to attach the array position to each feature, i is the counter
-                    var i = 0;
+                    var j = 0;
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
                         //iterate through each feature, add popup, do what needs to be done
-                        //feature is the geoJson Object
-                        //layer is the leaflet class
-                        
+                        //@param feature is the geoJson Object
+                        //@param layer is the leaflet class
                         onEachFeature: function (feature, layer) {
                             //local is only used client side for each feature
                             //it is stripped away from db saves
                             feature.properties.mto.local = {};
-                            feature.properties.mto.local.arrayPosition = i;
+                            feature.properties.mto.local.arrayPosition = j;
                             feature.properties.mto.local.layerId = v.id;
                             i += 1;
                             var popupHtml = (popupTemplate(feature.properties.mto));
@@ -288,13 +298,6 @@ define ([
                     }).addTo(self.map); 
                 }
             });
-            //test - render the envelope
-/*             var bounds2 = [[38.56803,-109.54347],[38.58286163241,-109.56373214722]];
-            self.overlays['mapEnvelope'] = L.geoJson(self.mapData.mapData.envelope, {
-                color: "#ff7800",
-                weight: 1
-            }).addTo(self.map);
-            console.log("s.o",self.overlays); */
         }
     }
     

@@ -48,10 +48,10 @@ define ([
             return deferred.promise();
         },
         saveLayer: function (geoJson, layerId, user) {
-            //strip "local"  and "layerId" from the properteis
+            //strip "local"  and "layerId" from properties.mto before
+            //  sending the geoJson back to server for save
             $.each(geoJson.features, function(i,v) {
                 delete v.properties.mto.local;
-                
             });
             var deferred = $.Deferred();
             var baseUrl = dispatch.request("getBaseUrl");
@@ -59,6 +59,7 @@ define ([
                     user: user.toJSON(),
                     geoJson: geoJson
                 };
+            dispatch.trigger("app:spinOn");
             var promise = $.ajax({
                 method: "PUT",
                 url: baseUrl + "api/layers/" + layerId,
@@ -66,6 +67,13 @@ define ([
                 data: JSON.stringify(params),
                 success: function (data) {
                     deferred.resolve(data);
+                },
+                error: function (data) {
+                    console.log("saveLayer throws an error", data);
+                    dispatch.trigger("app:popupMessage", "Permission Denied", null);
+                },
+                complete: function (data) {
+                    dispatch.trigger("app:spinOff");
                 },
                 dataType: "json"
             });

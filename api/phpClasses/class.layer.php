@@ -9,10 +9,11 @@ class Layer {
     public $dateModified;
     public $envelope;
     public $centroid;
+    public $tags;
     
     public function __construct ($id) {
         $pdo = DataConnecter::getConnection();        
-        $stmt = $pdo->prepare("SELECT id,owner, name, description, geoJson, dateCreated, dateModified, AsText( envelope ) AS envelope, AsText( centroid ) AS centroid FROM layers WHERE id = :id");
+        $stmt = $pdo->prepare("SELECT id,owner, name, description, geoJson, dateCreated, dateModified, AsText( envelope ) AS envelope, AsText( centroid ) AS centroid, tags FROM layers WHERE id = :id");
         $stmt->bindParam(":id",$id,PDO::PARAM_INT);
         $stmt->execute();
         while($obj = $stmt->fetch(PDO::FETCH_OBJ)){
@@ -31,9 +32,8 @@ class Layer {
             $this->envelope = $this->wktToJson($obj->envelope);
 
             // db stores centroid as wkt, we want it in geoJson
-           $this->centroid = $this->wktToJson($obj->centroid);
-            //also, handle the case of an empty feature collection
- 
+            $this->centroid = $this->wktToJson($obj->centroid);
+            $this->tags = $obj->tags;
      
         }
     }
@@ -65,6 +65,7 @@ class Layer {
         $layerArr['dateModified'] = $this->dateModified;
         $layerArr['envelope'] = json_decode($this->envelope, true);
         $layerArr['centroid'] = json_decode($this->centroid, true);
+        $layerArr['tags'] = $this->tags;
         return $layerArr;       
     }
     
@@ -79,11 +80,12 @@ class Layer {
             //calculate envelope (wkt)
             $envelope = MapUtil::calculateEnvelopeJson2Wkt(json_encode($layer['geoJson']));
             $centroid = MapUtil::calculateCentroidJson2Wkt(json_encode($layer['geoJson']));
+            $tags = $layer['tags'];
             $pdo = DataConnecter::getConnection();
             //handle slashes??
             //handle empty layer where envelope and centroid return null
             if($envelope != null && $centroid != null) {
-                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = GeomFromText(:env), centroid = GeomFromText(:cent), dateModified = NOW() WHERE id = :id");
+                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = GeomFromText(:env), centroid = GeomFromText(:cent), dateModified = NOW(), tags = :tags WHERE id = :id");
                 $stmt->bindParam(":description", $description, PDO::PARAM_STR);
                 $stmt->bindParam(":name", $name, PDO::PARAM_STR);
                 $stmt->bindParam(":owner", $owner, PDO::PARAM_STR);
@@ -91,6 +93,7 @@ class Layer {
                 $stmt->bindParam(":env", $envelope, PDO::PARAM_STR);
                 $stmt->bindParam(":cent", $centroid, PDO::PARAM_STR);
                 $stmt->bindParam(":id", $layerId, PDO::PARAM_INT);
+                $stmt->bindParam(":tags", $tags, PDO::PARMA_STR);
                 $result = $stmt->execute();
                 if ($result == true) {
                     return true;
@@ -99,12 +102,13 @@ class Layer {
                 }
             } else {
                 //here we put null into centroid and envelope, since it's an empty (or error??) geoJson object
-                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = null, centroid = null, dateModified = NOW() WHERE id = :id");
+                $stmt = $pdo->prepare("UPDATE layers SET owner = :owner, name = :name, description = :description, geoJson = :geoJson, envelope = null, centroid = null, tags = :tags, dateModified = NOW() WHERE id = :id");
                 $stmt->bindParam(":description", $description, PDO::PARAM_STR);
                 $stmt->bindParam(":name", $name, PDO::PARAM_STR);
                 $stmt->bindParam(":owner", $owner, PDO::PARAM_STR);
                 $stmt->bindParam(":geoJson", $geoJson, PDO::PARAM_STR);
                 $stmt->bindParam(":id", $layerId, PDO::PARAM_INT);
+                $stmt->bindParam(":tags", $tags, PDO::PARAM_STR);
                 $result = $stmt->execute();
                 if ($result == true) {
                     return true;

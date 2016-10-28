@@ -48,7 +48,7 @@ define ([
             return deferred.promise();
         },
         saveLayer: function (geoJson, layerId, user) {
-            //strip "local"  and "layerId" from properties.mto before
+            //strip "local" from properties.mto before
             //  sending the geoJson back to server for save
             $.each(geoJson.features, function(i,v) {
                 delete v.properties.mto.local;

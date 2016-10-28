@@ -3,6 +3,9 @@ define ([
     'apps/mapApp/data/data',
     'text!apps/mapApp/templates/lMapControl.tpl',
     'tpl!apps/mapApp/templates/popupTemplate.tpl',
+    'tpl!apps/mapApp/templates/layersDropdown.tpl',
+    'tpl!apps/mapApp/templates/featuresDropdown.tpl',
+    'tpl!apps/mapApp/templates/featureDetailModal.tpl',
     'backbone',
     'leaflet',    
     'leaflet.draw',
@@ -11,6 +14,9 @@ define ([
     data,
     lMapControl,
     popupTemplate,
+    layersDropdown,
+    featuresDropdown,
+    featureDetailModal,
     Backbone,
     L
 ) {
@@ -32,6 +38,47 @@ define ([
         selectedLayer: undefined,
         selectedFeatureArrayPos: undefined,
         
+        fireFeatureDetailModal: function(layerId, arrayPosition) {
+            var self = this;
+            //clean out the dialog div
+            $("#modal").html('');
+            //create a param object for the template
+            console.log("layerId", layerId);
+            console.log("arrayPosition", arrayPosition);
+            var templateParamObj = {
+                featureName: self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.name,
+                featureDesc: self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.desc
+            }
+            //get the template into html
+            var html1 = featureDetailModal(templateParamObj);
+            //load the region
+            $("#modal").html(html1);
+            //render the modal, firing the Bootstrap modal() ftn
+            $("#featureDetailModal").modal("show");
+            //attach event
+            $("#modal").on("shown.bs.modal", function () {
+                $("#mSaveButton").unbind();
+                $("#mSaveButton").on("click", function () {
+                    var newFeatureName = $("#mFeatureName").val();
+                    var newFeatureDesc = $("#mFeatureDesc").val();
+                    self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.name = newFeatureName;
+                    self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.desc = newFeatureDesc;
+                    //TODO validate
+                    
+                    //save off
+                    data.saveLayer(self.mapData.layersData[layerId].geoJson, layerId, self.user).done(function(data){
+                        console.log("back from save, data", data);
+                        //close the modal
+                        //first remove all event handlers from children of the modal
+                        $("#modal").find('*').unbind();
+                        $("#featureDetailModal").modal('hide');
+                        dispatch.trigger("app:popupMessage", "Saved", "mSaveButton");
+                        self.removeRenderedLayers();
+                        self.renderFromMapData();
+                    });
+                });
+            });
+        },
         initialize: function () {
             var self = this;
             this.data = data;
@@ -60,7 +107,16 @@ define ([
             var jjj = L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{
             //L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', {
                 attribution: 'attributes here'
-            }).addTo(self.map);            
+            }).addTo(self.map);
+            //assign events to button on popups
+            self.map.on("popupopen", function(e) {
+                console.log("e, popupopen", $(e.target));
+                $(".btnFeatureDetail").on("click", function (e) {
+                    var arrayPosition = $(e.target).attr('arrayposition');
+                    var layerId = $(e.target).attr('layerid');
+                    self.fireFeatureDetailModal(layerId, arrayPosition);
+                });   
+            });
         },
         initializeToolbar: function () {
             var self = this;
@@ -121,7 +177,8 @@ define ([
                     break;
                 };
                 return false;
-            });            
+            });
+
         },
         createLayer: function () {
             data.createLayer(1).done( function (data) {
@@ -146,8 +203,9 @@ define ([
                 ]
             };
             console.log(newMapCentroid, newMapZoom);
-            data.createMap(self.user, name, description, newMapCentroid, newMapZoom).done(function (data) {
+            data.createMap(self.user, name, description, newMapCentroid, newMapZoom).done( function(data) {
                 console.log("map create data:", data);
+                
             });
             
             
@@ -161,6 +219,7 @@ define ([
             self.initializeToolbar();
             self.drawControl = undefined;
             self.overdays = [];
+            self.editLayer = undefined;
             $.get(baseUrl + "api/maps/" + mapId, user.toJSON(), function (data){                
                 success: {
                     self.mapData = data;
@@ -180,6 +239,10 @@ define ([
             self.drawControl = new L.Control.Draw({
                 edit: {
                     featureGroup: self.overlays[self.editLayer]
+                },
+                draw: {
+                    rectangle: false,
+                    circle: false                    
                 }
             });
             self.map.on('draw:created', function (e) {
@@ -238,6 +301,17 @@ define ([
             //set the property
             self.editLayer = undefined;            
         },
+        removeRenderedLayers: function () {
+            var self = this;
+            //remove all layers (that are features) from present map
+            $.each(self.overlays, function (i, v) {
+                if (v && v._layers) {
+                    $.each(v._layers, function (ii, vv) {
+                        self.map.removeLayer(vv);
+                    });
+                }
+            });            
+        },
         renderAfterEdit: function () {
             var self = this;
             //remove all layers (that are features) from present map
@@ -268,36 +342,79 @@ define ([
             
         },
         renderFromMapData: function () {
+            var j;
             var self = this;
+            //clear out layersSelect dropdown
+            $("#layersSelect").html('');
+            //clear out featuresSelect dropdown
+            $("#featuresSelect").html('');
+            //remove events from old buttons
+            $(".layerSelect").unbind();
+            $(".featureSelect").unbind();
             //iterate through the layers
             $.each(self.mapData.layersData, function (i, v) {
-                console.log("layerId @ render:", i);
                 //add a button to layers select dropdown
-                $("#layersSelect").append("<li><a href='javascript:void(0)'>" + i + "</a></li>");
+                var templateData = {
+                    "i": i,
+                    "name": v.name
+                };
+                //render li element from template to layers select
+                $("#layersSelect").append(layersDropdown(templateData));
+                //render li element from template to features select
+                $("#featuresSelect").append("<li role='separator' class='divider'></li><li><a href='javascript:void(0)'><b>" + v.name + "</b></a></li>");
                 //handle the case of an empty feature collection
                 if (v.geoJson.features.length == 0) {
                     self.overlays[v.id] = new L.FeatureGroup();
                     self.map.addLayer(self.overlays[v.id]);
+                //render, muthafucka'
                 } else {
-                   //we want to attach the array position to each feature, i is the counter
-                    var j = 0;
+                    //we want to attach the array position and layerId to each feature, j is the geoJson array positon counter
+                    j = 0;
+                    //send the data to leaflet
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
                         //iterate through each feature, add popup, do what needs to be done
                         //@param feature is the geoJson Object
                         //@param layer is the leaflet class
                         onEachFeature: function (feature, layer) {
-                            //local is only used client side for each feature
+                            
+                            //feature.properties.mto.local is only used client side for each feature
                             //it is stripped away from db saves
                             feature.properties.mto.local = {};
                             feature.properties.mto.local.arrayPosition = j;
                             feature.properties.mto.local.layerId = v.id;
-                            i += 1;
+                            
+                            //fire the popup potential
                             var popupHtml = (popupTemplate(feature.properties.mto));
                             layer.bindPopup(popupHtml);
+                            
+                            //add an item to featuresSelect
+                            var p = {
+                                "arrayPosition": feature.properties.mto.local.arrayPosition,
+                                "layerId": feature.properties.mto.local.layerId,
+                                "name": feature.properties.mto.name,
+                                "desc": feature.properties.mto.desc
+                            };
+                            $("#featuresSelect").append(featuresDropdown(p));
+                            // advance the array position counter
+                            j += 1;
                         }
-                    }).addTo(self.map); 
+                    }).addTo(self.map);
+
                 }
             });
+            $(".layerSelect").on("click", function (e) {
+                self.editLayer = $(e.target).attr('mdata');
+                self.loadDrawControl();
+                //self.removeRenderedLayers();
+                //self.renderFromMapData();
+            });
+            $(".featureSelect").on("click", function (e) {
+                var layerId = $(e.target).attr('layerid');
+                var arrayPosition = $(e.target).attr('arrayPosition');
+                self.fireFeatureDetailModal(layerId, arrayPosition);
+            });
+
+            
         }
     }
     

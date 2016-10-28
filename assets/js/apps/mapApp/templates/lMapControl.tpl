@@ -1,7 +1,7 @@
 <div id = "lMapControl" class="btn-group" role="group" aria-label="...">
   <div class="btn-group" role="group">
-    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      Dropdown
+    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Map functions">
+      <span class="fa fa-map"></span>
       <span class="caret"></span>
     </button>
     <ul class="dropdown-menu">
@@ -19,12 +19,22 @@
   
  
   <div class="btn-group" role="group">
-    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-      Layers
+    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Layer functions">
+      <span class="fa fa-bars"></span>
       <span class="caret"></span>
     </button>
     <ul id = "layersSelect" class="dropdown-menu">
       
     </ul>
   </div>
+
+  <div class="btn-group" role="group">
+    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Feature functions">
+      <span class="fa fa-list"></span>
+      <span class="caret"></span>
+    </button>
+    <ul id = "featuresSelect" class="dropdown-menu">
+      
+    </ul>
+  </div>  
 </div>

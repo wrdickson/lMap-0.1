@@ -53,13 +53,6 @@ define ([
                 trigger: true
             });
 		}
-        
-        
-       
     });
-	
-
-
     return Router;
-
 });

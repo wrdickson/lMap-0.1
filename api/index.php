@@ -24,6 +24,7 @@ $app->get("/logoff/", "logoff");
 
 $app->post('/users/', 'addUser');
 $app->post('/users/:id', 'updateUser');
+$app->post('/users/:id/maps', 'getMyMaps');
 
 $app->get('/maps/:id', 'getMap');
 $app->post('/maps/', 'addMap');
@@ -42,12 +43,8 @@ function addLayer() {
 	foreach($params as $key=>$value){
 		$response[$key] = $value;
 	}    
-    
     $response['newLayerId'] = Layer::createLayer(1);
-
-    
     print json_encode($response);
-    
 }
 
 function addMap() {
@@ -74,6 +71,17 @@ function addMap() {
     print json_encode($response);    
 }
 
+function getMyMaps ($user) {
+	
+	$response = array();
+	$app = \Slim\Slim::getInstance();
+	$params = json_decode($app->request->getBody(), true);
+	$response['params'] = $params;	
+	$response['user'] = $user;
+	$response['maps'] = MapUtil::getUserMaps( $user );
+	
+	print json_encode($response);
+}
 
 function updateLayer ($id) {
 	$app = \Slim\Slim::getInstance();

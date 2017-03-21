@@ -47,6 +47,24 @@ define ([
             });            
             return deferred.promise();
         },
+		getMyMaps: function ( user ) {
+			console.log("gMM fires", user);
+            var deferred = $.Deferred();
+            var baseUrl = dispatch.request("getBaseUrl");
+            var params = {
+                user: user.toJSON()       
+            };
+            var promise = $.ajax({
+                method: "POST",
+                url: baseUrl + "api/users/" + params.user.mUserId + "/maps",
+                data: JSON.stringify(params),
+                success: function (data) {
+                    deferred.resolve(data);
+                },
+                dataType: "json"
+            });            
+            return deferred.promise();			
+		},
         saveLayer: function (geoJson, layerId, user) {
             //strip "local" from properties.mto before
             //  sending the geoJson back to server for save

@@ -6,6 +6,7 @@
     </button>
     <ul class="dropdown-menu">
       <li><a id="initializeMap" href="">Initialize Map</a></li>
+	  <li><a id="myMaps" href="">My Maps</a></li>
       <li><a id="loadMap9"href="">Load Map 9</a></li>
       <li><a id="editLayer13" href="">Edit Layer 13</a></li>
       <li><a id="editLayer8" href="">Edit Layer 8</a></li>

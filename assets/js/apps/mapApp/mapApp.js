@@ -20,6 +20,9 @@ define ([
     Backbone,
     L
 ) {
+    
+    'use strict';
+    
     var mapApp = {
         //data is the data function object, loaded at initialize()
         data: {},
@@ -31,20 +34,22 @@ define ([
         mapData: {},
         //overlays is an array of Leaflet layers, populated as the map renders in renderMapFromData()
         overlays: [],
-        //drawControlis the leaflet.draw object itself
+        //drawControl is the leaflet.draw object itself
         drawControl: undefined,
         //editLayer, int, the layerId active in the editor
         editLayer: undefined,
         selectedLayer: undefined,
         selectedFeatureArrayPos: undefined,
+        center: undefined, //the map center, updated when user moves or zooms
+        zoom: undefined, //int zoom
+        bounds: undefined, //
         
         fireFeatureDetailModal: function(layerId, arrayPosition) {
             var self = this;
             //clean out the dialog div
             $("#modal").html('');
+            //TODO $.unbind() from children of div #modal
             //create a param object for the template
-            console.log("layerId", layerId);
-            console.log("arrayPosition", arrayPosition);
             var templateParamObj = {
                 featureName: self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.name,
                 featureDesc: self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.desc
@@ -53,26 +58,34 @@ define ([
             var html1 = featureDetailModal(templateParamObj);
             //load the region
             $("#modal").html(html1);
-            //render the modal, firing the Bootstrap modal() ftn
+            //render the modal, firing the Bootstrap modal('show') ftn
             $("#featureDetailModal").modal("show");
-            //attach event
+            //attach event[s] AFTER the modal has rendered by hooking into the bootstrap event
             $("#modal").on("shown.bs.modal", function () {
+                //clear old events on this id
+                //TODO in the last interation of #modal, there may have been all sorts of
+                //  elements with events attached . . . need a more robust unbind() here
                 $("#mSaveButton").unbind();
+                //assign the proper event
                 $("#mSaveButton").on("click", function () {
                     var newFeatureName = $("#mFeatureName").val();
                     var newFeatureDesc = $("#mFeatureDesc").val();
                     self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.name = newFeatureName;
                     self.mapData.layersData[layerId].geoJson.features[arrayPosition].properties.mto.desc = newFeatureDesc;
                     //TODO validate
-                    
-                    //save off
+
++                   //save off
                     data.saveLayer(self.mapData.layersData[layerId].geoJson, layerId, self.user).done(function(data){
                         console.log("back from save, data", data);
                         //close the modal
                         //first remove all event handlers from children of the modal
                         $("#modal").find('*').unbind();
                         $("#featureDetailModal").modal('hide');
+                        //give the user a nice little sumthin sumthin
                         dispatch.trigger("app:popupMessage", "Saved", "mSaveButton");
+                        //reburn layers
+                        //TODO shouldn't we be replacing the local mapData object with the copy of current
+                        //  data that the .ajax() returned rather than relying on the pre-save data?
                         self.removeRenderedLayers();
                         self.renderFromMapData();
                     });
@@ -102,12 +115,23 @@ define ([
             this.map = L.map('map', {
                     //drawControl: true
                 }).setView( mapCenter, mapZoom );
+                
+            //need to manually set icon path for requirejs build . . . 
+            L.Icon.Default.imagePath = self.baseUrl + "assets/js/vendor/leaflet-0.7.7/images/";
+            
             //L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {                
             //L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{ 
-            var jjj = L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{
+			var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+				attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+
+            //var jjj = L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{
             //L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', {
-                attribution: 'attributes here'
+                //attribution: 'attributes here'
             }).addTo(self.map);
+            //assign local properties
+            self.zoom = self.map.getZoom();
+            self.center = self.map.getCenter();
+            self.bounds = self.map.getBounds();            
             //assign events to button on popups
             self.map.on("popupopen", function(e) {
                 console.log("e, popupopen", $(e.target));
@@ -116,6 +140,13 @@ define ([
                     var layerId = $(e.target).attr('layerid');
                     self.fireFeatureDetailModal(layerId, arrayPosition);
                 });   
+            });
+            //keep track of map center, bounds, zoom.  'moveend' will fire on drag or zoom change
+            self.map.on("moveend", function () {
+                self.zoom = self.map.getZoom();
+                self.center = self.map.getCenter();
+                self.bounds = self.map.getBounds();
+                console.log(self.zoom, self.center, self.bounds);
             });
         },
         initializeToolbar: function () {
@@ -144,6 +175,9 @@ define ([
                 $(this).closest(".dropdown-menu").prev().dropdown("toggle");
                 //console.log("clicked", e.target.id);
                 switch(e.target.id){
+					case "myMaps": 
+						self.showMyMaps();
+					break;
                     case "editLayer13":
                         self.editLayer = 13;
                         self.loadDrawControl();
@@ -178,7 +212,6 @@ define ([
                 };
                 return false;
             });
-
         },
         createLayer: function () {
             data.createLayer(1).done( function (data) {
@@ -205,10 +238,7 @@ define ([
             console.log(newMapCentroid, newMapZoom);
             data.createMap(self.user, name, description, newMapCentroid, newMapZoom).done( function(data) {
                 console.log("map create data:", data);
-                
             });
-            
-            
         },
         loadMap: function (mapId, user) {
             var self = this;
@@ -230,17 +260,17 @@ define ([
         loadDrawControl: function () {
             var self = this;
             console.log("self.editLayer", self.editLayer, "self.drawControl", self.drawControl);
-            var self = this; 
             //remove existing drawControl, if there is one
             if (self.drawControl) {
                 self.map.removeControl(self.drawControl);
             };
-            // Initialise the draw control and pass it the FeatureGroup of editable layers
+            // Initialise the draw control and pass it the FeatureGroup of editable layer
             self.drawControl = new L.Control.Draw({
                 edit: {
                     featureGroup: self.overlays[self.editLayer]
                 },
                 draw: {
+                    //we don't do rectangles and circles, thank you
                     rectangle: false,
                     circle: false                    
                 }
@@ -259,7 +289,6 @@ define ([
                     local: {}
                 };
                 self.overlays[self.editLayer].addLayer(layer);                 
-                
                 //save off to db
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
@@ -272,13 +301,11 @@ define ([
             self.map.on('draw:edited', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
                 self.data.saveLayer(rGeoJson, self.editLayer, self.user).done(function (data) {
-                    console.log("response from layer save:", data);
                     //rerender just to keep other data dependent things updated . . .
                     self.mapData.layersData[data.updatedLayer.id] = data.updatedLayer;
                     //rerender map
                     self.renderAfterEdit();                    
-                    
-                });;
+                });
             }); 
             self.map.on('draw:deleted', function (e) {
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
@@ -301,6 +328,8 @@ define ([
             //set the property
             self.editLayer = undefined;            
         },
+        
+        //kinda hackey . . . we dont' want to remove controls and non-feature Leaflet layers
         removeRenderedLayers: function () {
             var self = this;
             //remove all layers (that are features) from present map
@@ -322,24 +351,25 @@ define ([
                     });
                 }
             });
-            
             //reset overlays variable
             self.overlays = [];
- 
             self.renderFromMapData();
-            
             //reload draw control
             if (self.drawControl) {
                 self.map.removeControl(self.drawControl);
             };
-            // Initialise the draw control and pass it the FeatureGroup of editable layers
+            // Initialise the draw control and pass it the FeatureGroup of editLayer
             self.drawControl = new L.Control.Draw({
                 edit: {
                     featureGroup: self.overlays[self.editLayer]
+                },
+                draw: {
+                    //we don't do rectangles and circles, thank you
+                    rectangle: false,
+                    circle: false                    
                 }
             });
             self.map.addControl(self.drawControl);           
-            
         },
         renderFromMapData: function () {
             var j;
@@ -349,6 +379,7 @@ define ([
             //clear out featuresSelect dropdown
             $("#featuresSelect").html('');
             //remove events from old buttons
+            //TODO does this really unbind() everything???
             $(".layerSelect").unbind();
             $(".featureSelect").unbind();
             //iterate through the layers
@@ -361,6 +392,7 @@ define ([
                 //render li element from template to layers select
                 $("#layersSelect").append(layersDropdown(templateData));
                 //render li element from template to features select
+                //TODO fix, this doesn't load the template
                 $("#featuresSelect").append("<li role='separator' class='divider'></li><li><a href='javascript:void(0)'><b>" + v.name + "</b></a></li>");
                 //handle the case of an empty feature collection
                 if (v.geoJson.features.length == 0) {
@@ -368,7 +400,8 @@ define ([
                     self.map.addLayer(self.overlays[v.id]);
                 //render, muthafucka'
                 } else {
-                    //we want to attach the array position and layerId to each feature, j is the geoJson array positon counter
+                    //we want to attach the array position and layerId to each feature, 
+                    //  j is the geoJson array positon counter
                     j = 0;
                     //send the data to leaflet
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
@@ -376,17 +409,15 @@ define ([
                         //@param feature is the geoJson Object
                         //@param layer is the leaflet class
                         onEachFeature: function (feature, layer) {
-                            
                             //feature.properties.mto.local is only used client side for each feature
                             //it is stripped away from db saves
                             feature.properties.mto.local = {};
                             feature.properties.mto.local.arrayPosition = j;
                             feature.properties.mto.local.layerId = v.id;
-                            
+                            console.log(layer);
                             //fire the popup potential
                             var popupHtml = (popupTemplate(feature.properties.mto));
                             layer.bindPopup(popupHtml);
-                            
                             //add an item to featuresSelect
                             var p = {
                                 "arrayPosition": feature.properties.mto.local.arrayPosition,
@@ -399,7 +430,6 @@ define ([
                             j += 1;
                         }
                     }).addTo(self.map);
-
                 }
             });
             $(".layerSelect").on("click", function (e) {
@@ -413,12 +443,13 @@ define ([
                 var arrayPosition = $(e.target).attr('arrayPosition');
                 self.fireFeatureDetailModal(layerId, arrayPosition);
             });
-
-            
-        }
+        },
+		showMyMaps: function () {
+			var self = this;
+			data.getMyMaps(self.user).done(function (data){
+				console.log("data", data);
+			});
+		}
     }
-    
     return mapApp;
-
-
 });

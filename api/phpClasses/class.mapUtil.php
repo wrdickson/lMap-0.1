@@ -37,6 +37,32 @@ public static function getAllMaps(){
 	return $returnArr;
 
 }
+
+/* 
+return a user's maps 
+*/
+public static function getUserMaps( $userId ){
+	$returnArr = array();
+	$pdo = DataConnecter::getConnection();
+	$stmt = $pdo->prepare("SELECT name, description, area, AsText(envelope) AS envelope, AsText(centroid) AS centroid, owner FROM maps WHERE owner = :uId");
+	$stmt->bindParam(":uId",$userId,PDO::PARAM_INT);
+	$stmt->execute();
+	while($obj = $stmt->fetch(PDO::FETCH_OBJ)){
+		$iArr = array();
+		$iArr['name'] = $obj->name;
+		$iArr['description'] = $obj->description;
+        $iArr['area'] = $obj->area;
+		$iArr['envelope'] = $obj->envelope;
+		//convert the envelope to json: 
+		$geoEnv = geoPHP::load($obj->envelope, "wkt");
+		$iArr['envelopeJson'] = json_decode($geoEnv->out("json"), true);
+		//$geoCent = geoPHP::load($obj->centroid, "wkt");
+		//$iArr['centroid'] = json_decode($geoCent->out("json"), true); 
+		//$iArr['owner'] = $obj->owner;
+		array_push($returnArr, $iArr);
+	}
+	return $returnArr;
+}
 /*
 Adds a new map to the database using a geo json object .. .
 @param int $owner UserId of the creater

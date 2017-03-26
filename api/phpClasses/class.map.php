@@ -63,7 +63,7 @@ class Map {
                 $this->owner = $obj->owner;
                 $this->name = $obj->name;
                 $this->description = $obj->description;
-                $this->layers = $obj->layers;
+                $this->layers = json_decode($obj->layers, true);
                 $this->added = $obj->added;
                 $this->modified = $obj->modified;
             }
@@ -98,8 +98,11 @@ class Map {
         $features['features'] = array();
         $pdo = DataConnecter::getConnection();
         //build an array of the layers
-        $layers = explode(",", $this->layers);
-        foreach ($layers as $layer) {
+        //$layers = explode(",", $this->layers);
+		//foreach ($layers as $layer) {
+		
+		foreach ( $this->layers as $layer => $layerInfo) {
+        
             $iLayer = new Layer($layer);
             $iJson = $iLayer->geoJson;
             $iso = json_decode($iJson, true);

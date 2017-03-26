@@ -2,11 +2,13 @@
 define ([
     'backbone',
     'common/dispatch',
-    'apps/pageLoader/pageLoader'
+    'apps/pageLoader/pageLoader',
+	'apps/mapApp/mapApp'
 ], function (
     Backbone,
     dispatch,
-    pageLoader
+    pageLoader,
+	mapApp
 ) {
     'use strict'
 	
@@ -17,6 +19,7 @@ define ([
             'index.php'             :   'cleanUrl',
             'home'                  :   'home',
             'content/:id'           :   'loadPage',
+			'maps/:id'				:	'loadMap',
             //make sure this one is last
             //it will default if no route is found
             '*path'                 :  'error404' 
@@ -34,6 +37,10 @@ define ([
             pageLoader.initialize();
             
         },
+		loadMap: function (id) {
+			mapApp.initialize();
+			mapApp.loadMap(id);
+		},		
         loadPage: function (id) {
             this.resetNavbar(id);
             //$("#contentMain").html("page " + id);

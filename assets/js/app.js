@@ -132,6 +132,10 @@ define([
             dispatch.on("app:popupMessage", function (message, sender) {
                 self.popupMessage(message,sender);
             });
+			dispatch.on("app:navigate", function (path) {
+				console.log("app:navigate", path);
+				router.navigate(path, true);
+			});
             
 		}
 	};

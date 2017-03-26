@@ -69,7 +69,7 @@ define ([
             //strip "local" from properties.mto before
             //  sending the geoJson back to server for save
             $.each(geoJson.features, function(i,v) {
-                delete v.properties.mto.local;
+                delete v.properties.local;
             });
             var deferred = $.Deferred();
             var baseUrl = dispatch.request("getBaseUrl");

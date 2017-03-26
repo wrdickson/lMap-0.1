@@ -138,10 +138,11 @@ function getMap($id){
     $response['mapData'] = $iMap->dumpArray();
     //get the layers
     //explode the layers string
-    $layersArr = explode(",", $iMap->getLayers());
+    //$layersArr = explode(",", $iMap->getLayers());
     //iterate through each layer and add layer data to response . . . 
     //TODO handle the case where the layer has been deleted or is corrupt
-    foreach($layersArr as $iLayerIndex) {
+    //foreach($layersArr as $iLayerIndex) {
+	foreach ( $iMap->getLayers() as $iLayerIndex => $iLayerInfo ) {
         $iLayer = new Layer($iLayerIndex);
         //array_push($response['layers'], $iLayer->dumpArray());
         $response['layersData'][$iLayerIndex] = $iLayer->dumpArray();

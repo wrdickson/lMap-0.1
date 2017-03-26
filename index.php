@@ -19,7 +19,8 @@
         <link rel="stylesheet" href="<?php echo BASE_URL;?>assets/css/animate.css">
         <link rel="stylesheet" href="<?php echo BASE_URL?>assets/js/vendor/leaflet-0.7.7/leaflet.css">    
         <link rel="stylesheet" href="<?php echo BASE_URL?>assets/js/vendor/leaflet-draw/leaflet.draw.css"> 
-        <link rel="stylesheet" href="<?php echo BASE_URL?>assets/css/font-awesome-4.6.3/css/font-awesome.min.css">
+		<link rel="stylesheet" href="<?php echo BASE_URL?>assets/js/vendor/leaflet-vector-markers/leaflet-vector-markers.css">
+        <link rel="stylesheet" href="<?php echo BASE_URL?>assets/css/font-awesome-4.7.0/css/font-awesome.min.css">
         <?php
             //get session user data if available
             //this is to handle the situation where a user refreshes or manually enters a url
@@ -102,10 +103,10 @@
 
 
         <script data-main="/assets/js/require_main.js" src="/assets/js/vendor/require.js"></script>		
-
+ 
         <!--
         <script src="/build/compiled.js"></script>
-        -->         
+        -->        
     
     </body>
 

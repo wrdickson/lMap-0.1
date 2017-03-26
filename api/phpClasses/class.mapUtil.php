@@ -44,18 +44,23 @@ return a user's maps
 public static function getUserMaps( $userId ){
 	$returnArr = array();
 	$pdo = DataConnecter::getConnection();
-	$stmt = $pdo->prepare("SELECT name, description, area, AsText(envelope) AS envelope, AsText(centroid) AS centroid, owner FROM maps WHERE owner = :uId");
+	$stmt = $pdo->prepare("SELECT id, name, description, area, AsText(envelope) AS envelope, AsText(centroid) AS centroid, owner FROM maps WHERE owner = :uId");
 	$stmt->bindParam(":uId",$userId,PDO::PARAM_INT);
 	$stmt->execute();
 	while($obj = $stmt->fetch(PDO::FETCH_OBJ)){
 		$iArr = array();
+		$iArr['id'] = $obj->id;
 		$iArr['name'] = $obj->name;
 		$iArr['description'] = $obj->description;
         $iArr['area'] = $obj->area;
 		$iArr['envelope'] = $obj->envelope;
 		//convert the envelope to json: 
 		$geoEnv = geoPHP::load($obj->envelope, "wkt");
-		$iArr['envelopeJson'] = json_decode($geoEnv->out("json"), true);
+		if ($obj->envelope != NULL){
+			$iArr['envelopeJson'] = json_decode($geoEnv->out("json"), true);
+		} else {
+			$iArr['envelopeJson'] = null;	
+		}
 		//$geoCent = geoPHP::load($obj->centroid, "wkt");
 		//$iArr['centroid'] = json_decode($geoCent->out("json"), true); 
 		//$iArr['owner'] = $obj->owner;

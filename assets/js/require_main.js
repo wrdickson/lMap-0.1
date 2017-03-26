@@ -12,7 +12,8 @@ requirejs.config({
     tpl: "vendor/underscore-tpl",
     underscore: "vendor/underscore",
     leaflet: "vendor/leaflet-0.7.7/leaflet-src",
-    'leaflet.draw': "vendor/leaflet-draw/leaflet.draw-src",    
+    'leaflet.draw': "vendor/leaflet-draw/leaflet.draw-src", 
+	'leaflet-vector-markers': "vendor/leaflet-vector-markers/leaflet-vector-markers",
     bootstrap: "vendor/bootstrap/dist/js/bootstrap.min"
   },
   shim: {
@@ -32,7 +33,8 @@ requirejs.config({
     leaflet: {
         exports : "L"
     },
-    'leaflet.draw': ["leaflet"]
+    'leaflet.draw': ["leaflet"],
+	'leaflet-vector-markers': ["leaflet"]
   }
 });
 require(["app"], function(app){

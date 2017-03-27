@@ -288,7 +288,7 @@ define ([
             });
             self.map.on('draw:created', function (e) {
                 //add properties
-                //see: http://stackoverflow.com/questions/29736345/adding-properties-to-a-leaflet-layer-that-will-become-geojson-options
+                //Extremly important to read this: http://stackoverflow.com/questions/29736345/adding-properties-to-a-leaflet-layer-that-will-become-geojson-options
                 var layer = e.layer,
                     feature = layer.feature = layer.feature || {}; // Initialize feature
 
@@ -387,8 +387,6 @@ define ([
 		renderFromMapDataT: function () {
 			var j;
 			var self = this;
-			console.log("sMD:", self.mapData);
-
             $.each(self.mapData.layersData, function (i, v) {
                 //add a button to layers select dropdown
                 var templateData = {
@@ -413,13 +411,12 @@ define ([
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
 						//pointToLayer handles styling on points
 						//this code runs like onEachFeature, but it's actually like onEachPoint . . . kinda?
-						 pointToLayer: function( feature, latlng ) {
-								//we need to get the style info from the map object, not the layer object
-								var iStyle = self.mapData.mapData.layers[i].style;
-								console.log("iStyle:", iStyle);
-								var iPrefix = feature.properties.icon.split("%")[0];
-								var iIcon = feature.properties.icon.split("%")[1]
-								var aedMarker = L.VectorMarkers.icon({
+						pointToLayer: function( feature, latlng ) {
+							//we need to get the style info from the map object, not the layer object
+							var iStyle = self.mapData.mapData.layers[i].style;
+							var iPrefix = feature.properties.icon.split("%")[0];
+							var iIcon = feature.properties.icon.split("%")[1]
+							var aedMarker = L.VectorMarkers.icon({
 								icon: iIcon,
 								prefix: iPrefix,
 								iconColor: iStyle.iconColor,
@@ -431,20 +428,46 @@ define ([
 						//though this fires also on fucking points????? wtf???
 						style: function ( feature ) {
 							//we need to get the style info from the map object, not the layer object
-							var iStyle = self.mapData.mapData.layers[i].style;							
-							console.log("nonPOINT feature:", feature);
-							return {
-								//TODO: fill is fucked up, linestring and polygon read same??
-								color: iStyle.color, 
-								fill: iStyle.fill,
-								fillColor: iStyle.fillColor,
-								fillOpacity: iStyle.fillOpacity,
-								opacity: iStyle.opacity,
-								stroke: iStyle.polyStroke,
-								weight: iStyle.weight, 
-								opacity: iStyle.opacity,
-								
+							var iStyle = self.mapData.mapData.layers[i].style;
+							// //we're using the same config object to style points, lines, and polygons.  the only conflict is "fill" with linestring and polygon.  if fill is true, it fills lines (which we never want) AND polygons, so we filter . . .
+							//this is profoundly fucking confusing, but it works
+							if(feature.geometry.type == "LineString") {
+								return {
+									color: iStyle.color, 
+									fill: false,		//this is the difference and why we have these ifs
+									fillColor: iStyle.fillColor,
+									fillOpacity: iStyle.fillOpacity,
+									opacity: iStyle.opacity,
+									stroke: true,
+									weight: iStyle.weight, 
+									opacity: iStyle.opacity,
+								};								
 							};
+							if(feature.geometry.type == "Polygon") {
+								//HORRIBLE lEAFLET BUG!!!!  HACK!!!! HACK!!! 
+								//I cannot consistently pass iStyle.polyStroke to the return, but if i recast it as the var getaroundhack, it works.  fuck fucking me, this is what sucks
+								//this is the craziest bullshit i've ever seen . . . it won't replicate the variable or whatever . . .absulutely fucking crazy, but this is the hack to get the value of iStyle.polyStroke into the return . . this fucking SUCKS, man . . .I'll take the god fucking damned hack . . . .fuck this shit
+								if(iStyle.polyStroke == "true") {
+									var getaroundhack = true;
+								} else {
+									var getaroundhack = false;
+								}
+								return {
+									color: iStyle.color, 
+									fill: iStyle.fill,		//and here we default to the style
+									fillColor: iStyle.fillColor,
+									fillOpacity: iStyle.fillOpacity,
+									opacity: iStyle.opacity,
+									//AND HERE'S THE GETAROUND HACK SINCE I CANT PASS THE VARIABLE OR WHAT THE FUCK EVER.  ARRRRRRRRRRRRRGHHHHHHHH!!!!!!!!!!!!!!!!
+									stroke: getaroundhack,
+									weight: iStyle.weight, 
+									opacity: iStyle.opacity,
+								};
+							}
+							if(feature.geometry.type == "Point") {
+								console.log("fucking point");
+								//return {};
+							}
 						}, 
                         //iterate through each feature, add popup, do what needs to be done
                         //@param feature is the geoJson Object

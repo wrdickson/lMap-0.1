@@ -424,8 +424,6 @@ define ([
 							});						
 							return L.marker(latlng, {icon: aedMarker});	
 						},
-						//now, style will handle linestring and polygon
-						//though this fires also on fucking points????? wtf???
 						style: function ( feature ) {
 							//we need to get the style info from the map object, not the layer object
 							var iStyle = self.mapData.mapData.layers[i].style;
@@ -444,9 +442,6 @@ define ([
 								};								
 							};
 							if(feature.geometry.type == "Polygon") {
-								//HORRIBLE lEAFLET BUG!!!!  HACK!!!! HACK!!! 
-								//I cannot consistently pass iStyle.polyStroke to the return, but if i recast it as the var getaroundhack, it works.  
-								//this is the craziest bullshit i've ever seen . . . it won't replicate the variable or whatever . . .absulutely  crazy, but this is the hack to get the value of iStyle.polyStroke into the return . . this SUCKS, man . . .I'll take the  . . . it
 								if(iStyle.polyStroke == "true") {
 									var getaroundhack = true;
 								} else {
@@ -458,7 +453,6 @@ define ([
 									fillColor: iStyle.fillColor,
 									fillOpacity: iStyle.fillOpacity,
 									opacity: iStyle.opacity,
-									//AND HERE'S THE GETAROUND HACK SINCE I CANT PASS THE VARIABLE OR WHAT THE FUCK EVER.  ARRRRRRRRRRRRRGHHHHHHHH!!!!!!!!!!!!!!!!
 									stroke: getaroundhack,
 									weight: iStyle.weight, 
 									opacity: iStyle.opacity,

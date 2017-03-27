@@ -384,6 +384,7 @@ define ([
             });
             self.map.addControl(self.drawControl);           
         },
+		//this is the one
 		renderFromMapDataT: function () {
 			var j;
 			var self = this;

@@ -429,7 +429,7 @@ define ([
 						style: function ( feature ) {
 							//we need to get the style info from the map object, not the layer object
 							var iStyle = self.mapData.mapData.layers[i].style;
-							// //we're using the same config object to style points, lines, and polygons.  the only conflict is "fill" with linestring and polygon.  if fill is true, it fills lines (which we never want) AND polygons, so we filter . . .
+							//we're using the same config object to style points, lines, and polygons.  the only conflict is "fill" with linestring and polygon.  if fill is true, it fills lines (which we never want) AND polygons, so we filter . . .
 							//this is profoundly fucking confusing, but it works
 							if(feature.geometry.type == "LineString") {
 								return {
@@ -445,8 +445,8 @@ define ([
 							};
 							if(feature.geometry.type == "Polygon") {
 								//HORRIBLE lEAFLET BUG!!!!  HACK!!!! HACK!!! 
-								//I cannot consistently pass iStyle.polyStroke to the return, but if i recast it as the var getaroundhack, it works.  fuck fucking me, this is what sucks
-								//this is the craziest bullshit i've ever seen . . . it won't replicate the variable or whatever . . .absulutely fucking crazy, but this is the hack to get the value of iStyle.polyStroke into the return . . this fucking SUCKS, man . . .I'll take the god fucking damned hack . . . .fuck this shit
+								//I cannot consistently pass iStyle.polyStroke to the return, but if i recast it as the var getaroundhack, it works.  
+								//this is the craziest bullshit i've ever seen . . . it won't replicate the variable or whatever . . .absulutely  crazy, but this is the hack to get the value of iStyle.polyStroke into the return . . this SUCKS, man . . .I'll take the  . . . it
 								if(iStyle.polyStroke == "true") {
 									var getaroundhack = true;
 								} else {

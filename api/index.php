@@ -34,6 +34,7 @@ $app->put('/test/:id',  'updateTest');
 $app->post('/test/', 'addTest');
 
 $app->post('/layers/', 'addLayer');
+$app->get('/layers/:id', 'getLayer');
 $app->put('/layers/:id', 'updateLayer');
 
 function addLayer() {
@@ -128,6 +129,16 @@ function updateLayer ($id) {
     
 
 
+}
+
+function getLayer($id){
+	//this has to come across as json so it will map to the Backbone model
+    $response = array();
+    //$response['layers'] = array();
+	$iLayer = new Layer($id);
+	$response['id'] = $id;
+    $response['layerData'] = $iLayer->dumpArray();
+    print json_encode($response);		
 }
 
 function getMap($id){

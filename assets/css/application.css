@@ -2,6 +2,14 @@ body {
 	background-color: #ccc;
 	
 }
+#layersSelect a {
+	background-color: #bbb;
+}
+
+.leaflet-popup-content {
+	max-height: 225px;
+	overflow: auto;
+}
 
 .popupPanel
 {

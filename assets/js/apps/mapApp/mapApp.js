@@ -11,7 +11,6 @@ define ([
     'backbone',
 	'bootstrap',
     'leaflet',    
-    'leaflet.draw',
 	'leaflet-vector-markers'
 ], function (
     dispatch,
@@ -27,9 +26,7 @@ define ([
 	Bootstrap,
     L
 ) {
-    
     'use strict';
-    
     var mapApp = {
         //data is the data function object, loaded at initialize()
         data: {},
@@ -41,16 +38,34 @@ define ([
         mapData: {},
         //overlays is an array of Leaflet layers, populated as the map renders in renderMapFromData()
         overlays: [],
-        //drawControl is the leaflet.draw object itself
-        drawControl: undefined,
-        //editLayer, int, the layerId active in the editor
-        editLayer: undefined,
+		//hidden layers are triggered by users
+		hiddenLayers: [],
         selectedLayer: undefined,
         selectedFeatureArrayPos: undefined,
         center: undefined, //the map center, updated when user moves or zooms
         zoom: undefined, //int zoom
         bounds: undefined, //
         
+		applyTileLayer: function ( layerName ) {
+			var self = this;
+			switch (layerName) {
+				case "topo":
+					L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', 
+						{attribution: 'attributes here'
+					}).addTo(self.map);				
+				break;
+				case "osm":
+					L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+						attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+					}).addTo(self.map);				
+				break;
+				case "sat":
+					L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+						attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+					}).addTo(self.map);			
+				break;
+			}
+		},
         fireFeatureDetailModal: function(layerId, arrayPosition) {
             var self = this;
             //clean out the dialog div
@@ -107,37 +122,18 @@ define ([
             this.initializeMap();
             this.initializeToolbar();
         },
-        initializeLayersControl: function () {
-            var self = this;
-            console.log("sl", self.overlays);
-            //layers control
-            L.control.layers(null, self.overlays).addTo(self.map);
-        },
         initializeMap: function () {
             var self = this;
-            var mapCenter = [38.57, -109.54];
-            var mapZoom = 14;
+            var center = [38.57, -109.54];
+            var zoom = 10;
             $("#contentMain").html("<div id='map'></div>");
-            
-            this.map = L.map('map', {
-                    //drawControl: true
-                }).setView( mapCenter, mapZoom );
-                
             //need to manually set icon path for requirejs build . . . 
             L.Icon.Default.imagePath = self.baseUrl + "assets/js/vendor/leaflet-0.7.7/images/";
-            
-            //L.tileLayer('https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}', {                
             //L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{ 
-			
-			/* var Esri_WorldImagery = L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-				attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community' */
-
-            /* var jjj = L.tileLayer('http://localhost/tServer/api/eImg/{z}/{y}/{x}.jpg',{ */
-				
-            L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', {
-                attribution: 'attributes here'
-				
-            }).addTo(self.map);
+			self.map = L.map('map').setView([38.57, -109.54], 14);
+			L.tileLayer('http://services.arcgisonline.com/ArcGIS/rest/services/USA_Topo_Maps/MapServer/tile/{z}/{y}/{x}.jpg', 
+				{attribution: 'attributes here'
+			}).addTo(self.map);		
             //assign local properties
             self.zoom = self.map.getZoom();
             self.center = self.map.getCenter();
@@ -156,7 +152,7 @@ define ([
                 self.zoom = self.map.getZoom();
                 self.center = self.map.getCenter();
                 self.bounds = self.map.getBounds();
-                console.log(self.zoom, self.center, self.bounds);
+                //console.log(self.zoom, self.center, self.bounds);
             });
         },
         initializeToolbar: function () {
@@ -198,17 +194,19 @@ define ([
                     break;
                     case "toggleDrawControl": 
                         console.log("toggleDrawControl");    
-                    
                     break;
-                    case "loadMap9":
-                        self.loadMap(9, self.user);
+					case "loadTopo":
+						self.applyTileLayer("topo");
+					break;
+                    case "loadOsm":
+                        self.applyTileLayer("osm");
                     break;
+					case "loadSat":
+						self.applyTileLayer("sat");
+					break;
                     case "initializeLayersControl":
                         self.initializeLayersControl();
                         return false;
-                    break;
-                    case "renderMap":
-                        self.render();
                     break;
                     case "createLayer":
                         self.createLayer();
@@ -263,22 +261,33 @@ define ([
             $.get(baseUrl + "api/maps/" + mapId, self.user.toJSON(), function (data){                
                 success: {
                     self.mapData = data;
-					//debug start . . . 
+					//keep a local copy of what layers are hidden at self.hiddenLayers[]
+					//also note, we only do this on the initial load.  after that, map will re-render, but we don't
+					//want to mess with the status of the hidden layers variable as user could be changing it
+					self.processHiddenLayers();					
+					//render the map.  render also loads up the toolbar
                     self.renderFromMapDataT();
+					
                 }
             },"json");
         },
-        loadDrawControl: function () {
+/*         loadDrawControl: function () {
+			
             var self = this;
+			
             console.log("self.editLayer", self.editLayer, "self.drawControl", self.drawControl);
             //remove existing drawControl, if there is one
             if (self.drawControl) {
+				console.log("removing existing draw control");
                 self.map.removeControl(self.drawControl);
+				self.drawControl = undefined;
             };
             // Initialise the draw control and pass it the FeatureGroup of editable layer
+			console.log("self.overlays @ editor init:", self.overlays);
+			console.log("self.editLayer @ editor init:", self.editLayer);
             self.drawControl = new L.Control.Draw({
                 edit: {
-                    featureGroup: self.overlays[self.editLayer]
+                    featureGroup: self.overlays[parseInt(self.editLayer)]
                 },
                 draw: {
                     //we don't do rectangles and circles, thank you
@@ -291,15 +300,11 @@ define ([
                 //Extremly important to read this: http://stackoverflow.com/questions/29736345/adding-properties-to-a-leaflet-layer-that-will-become-geojson-options
                 var layer = e.layer,
                     feature = layer.feature = layer.feature || {}; // Initialize feature
-
                 feature.type = feature.type || "Feature"; // Initialize feature.type
-				
                 var props = feature.properties = feature.properties || {}; // Initialize feature.properties
                 props.name = "name";
                 props.desc = "desc";
 				props.icon = "fa%dot-circle-o";
-				console.log("feature2", feature);
-				alert("wait!");
                 self.overlays[self.editLayer].addLayer(layer);                 
                 //save off to db
                 var rGeoJson = self.overlays[self.editLayer].toGeoJSON();
@@ -330,18 +335,31 @@ define ([
                 });                       
             });
             self.map.addControl(self.drawControl);
-        },
+			self.renderFromMapDataT();
+        }, */
+		//fires after load data . . . keeps a local array of hidden layers
+		processHiddenLayers() {
+			var self = this;
+			//clear the array
+			self.hiddenLayers = [];
+			//iterate through the data object and build the local array
+			$.each( self.mapData.mapData.layers, function ( i, v ) {
+				if( v.display != 'true' ) {
+					self.hiddenLayers.push(parseInt(i));
+				}
+			});			
+		},
         removeEditor: function () {
             var self = this;
             //remove the control
-            if (self.drawControl) {
+            if( self.drawControl ) {
                 self.map.removeControl(self.drawControl);
                 self.drawControl = undefined;
             }; 
             //set the property
-            self.editLayer = undefined;            
+            self.editLayer = undefined;
+			self.renderFromMapDataT();
         },
-        
         //kinda hackey . . . we dont' want to remove controls and non-feature Leaflet layers
         removeRenderedLayers: function () {
             var self = this;
@@ -388,14 +406,62 @@ define ([
 		renderFromMapDataT: function () {
 			var j;
 			var self = this;
+			//clean house
+			self.removeRenderedLayers();
+			$("#layersSelect").empty();
+			$("#featuresSelect").empty();
             $.each(self.mapData.layersData, function (i, v) {
                 //add a button to layers select dropdown
                 var templateData = {
                     "i": i,
-                    "name": v.name
+                    "name": v.name,
+					"color": self.mapData.mapData.layers[i].style.color
                 };
                 //render li element from template to layers select
                 $("#layersSelect").append(layersDropdown(templateData));
+				//now adjust the buttons based on self.hiddenLayers
+				$.each( self.hiddenLayers, function ( i,v ) {
+					var ww = '#layerHide' + v.toString();
+					$(ww).addClass('disabled');
+					var yy = '#layerShow' + v.toString(); 
+					$(yy).removeClass('disabled');	
+				});				
+				//and apply handlers to layersSeSelect
+				$("#layersSelect button").click( function ( e ) {
+					//it's actually the 'fa' icon <span> getting clicked [!?], so we need
+					//to manually check for the enabled/ disabled class on the parent button
+					// . . .  .  whatever :-P
+					if ( $(e.target).parent().attr("class").includes("disabled") == false ) {
+						var cc = $(e.target).parent().attr("id") ;
+							var cmd = cc.substring(5,9);
+							var layerId = cc.substring(9);
+							switch ( cmd ) {
+								case "Hide":
+									//make sure we don't add it if already there
+									if( self.hiddenLayers.indexOf( parseInt(layerId) ) == -1 ) {
+										self.hiddenLayers.push( parseInt(layerId) );
+									}
+									self.renderFromMapDataT();									
+								break;
+								case "Show":
+									var pos = self.hiddenLayers.indexOf( parseInt(layerId) );
+									self.hiddenLayers = _.without( self.hiddenLayers, parseInt(layerId) );
+									self.renderFromMapDataT();
+								break;
+								case "Edit":
+									//strip out the edit layer id
+									var el = parseInt($(e.target).parent().attr("id").substring(9));
+									//show if hidden
+									self.hiddenLayers = _.without( self.hiddenLayers, parseInt(layerId) );
+									self.renderFromMapDataT();
+									//set local variable
+									self.editLayer = el;
+									//fire editor
+									self.loadDrawControl();
+								break
+							}							
+					};
+				});
                 //render li element from template to features select
                 //TODO fix, this doesn't load the template
                 $("#featuresSelect").append("<li role='separator' class='divider'></li><li><a href='javascript:void(0)'><b>" + v.name + "</b></a></li>"); 
@@ -410,20 +476,36 @@ define ([
                     j = 0;
                     //send the data to leaflet
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
+						filter: function ( feature ) {
+							/* console.log("feature @ filter ftn: ", feature, "v.id:", v.id);
+							if (self.mapData.mapData.layers[i].display == "true") {
+								return true;
+							} else {
+								return false;
+							} */
+							if( self.hiddenLayers.indexOf( parseInt(v.id) ) == -1 ) {
+								return true;
+							} else {
+								return false;
+							}
+						},
 						//pointToLayer handles styling on points
 						//this code runs like onEachFeature, but it's actually like onEachPoint . . . kinda?
 						pointToLayer: function( feature, latlng ) {
-							//we need to get the style info from the map object, not the layer object
+					 		//we need to get the style info from the map object, not the layer object
 							var iStyle = self.mapData.mapData.layers[i].style;
+							//icon and prefix (fa or glyphicon) is on feature
 							var iPrefix = feature.properties.icon.split("%")[0];
 							var iIcon = feature.properties.icon.split("%")[1]
 							var aedMarker = L.VectorMarkers.icon({
+								//so . . . the icon is determined by layer
 								icon: iIcon,
 								prefix: iPrefix,
+								// . .  and the colors are determined by the map object
 								iconColor: iStyle.iconColor,
 								markerColor: iStyle.markerColor
 							});						
-							return L.marker(latlng, {icon: aedMarker});	
+							return L.marker(latlng, {icon: aedMarker});
 						},
 						//now, style will handle linestring and polygon
 						//though this fires also on fucking points????? wtf???
@@ -464,12 +546,8 @@ define ([
 									weight: iStyle.weight, 
 									opacity: iStyle.opacity,
 								};
-							}
-							if(feature.geometry.type == "Point") {
-								console.log("fucking point");
-								//return {};
-							}
-						}, 
+							};
+						},
                         //iterate through each feature, add popup, do what needs to be done
                         //@param feature is the geoJson Object
                         //@param layer is the leaflet class
@@ -500,7 +578,6 @@ define ([
 		showMyMaps: function () {
 			var self = this;
 			data.getMyMaps(self.user).done(function (data){
-				console.log("data", data);
 				//use empty to remove any residual event handlers
 				$("#modal").empty();
 				//get the template into html, handing it the maps array
@@ -516,9 +593,7 @@ define ([
 				//attach event
 				$("#modal").on("shown.bs.modal", function () {
 					$("tr").on("click", function () {
-						console.log($(this).attr("mapId"));
 						dispatch.trigger("app:navigate", "maps/" + $(this).attr("mapId"));
-						
 					}); 
 				});				
 			});

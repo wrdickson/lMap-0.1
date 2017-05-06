@@ -139,14 +139,15 @@ define ([
             self.center = self.map.getCenter();
             self.bounds = self.map.getBounds();            
             //assign events to button on popups
-            self.map.on("popupopen", function(e) {
-                console.log("e, popupopen", $(e.target));
-                $(".btnFeatureDetail").on("click", function (e) {
-                    var arrayPosition = $(e.target).attr('arrayposition');
-                    var layerId = $(e.target).attr('layerid');
-                    self.fireFeatureDetailModal(layerId, arrayPosition);
-                });   
-            });
+			self.map.on("popupopen", function(e) {
+				console.log("e, popupopen", $(e.target));
+				$(".btnFeatureDetail").on("click", function (e) {
+					var arrayPosition = $(e.target).attr('arrayposition');
+					var layerId = $(e.target).attr('layerid');
+					self.fireFeatureDetailModal(layerId, arrayPosition);
+				});   
+			});
+			
             //keep track of map center, bounds, zoom.  'moveend' will fire on drag or zoom change
             self.map.on("moveend", function () {
                 self.zoom = self.map.getZoom();
@@ -179,19 +180,11 @@ define ([
                 //bit of a hack here to make the dropdown toggle
                 //see http://stackoverflow.com/questions/18855132/close-bootstrap-dropdown-after-link-click
                 $(this).closest(".dropdown-menu").prev().dropdown("toggle");
-                //console.log("clicked", e.target.id);
+                console.log("clicked @ problem", e.target.id);
                 switch(e.target.id){
 					case "myMaps": 
 						self.showMyMaps();
 					break;
-                    case "editLayer14":
-                        self.editLayer = 14;
-                        self.loadDrawControl();
-                    break;
-                    case "editLayer15":
-                        self.editLayer = 15;
-                        self.loadDrawControl();
-                    break;
                     case "toggleDrawControl": 
                         console.log("toggleDrawControl");    
                     break;
@@ -272,9 +265,7 @@ define ([
             },"json");
         },
 /*         loadDrawControl: function () {
-			
             var self = this;
-			
             console.log("self.editLayer", self.editLayer, "self.drawControl", self.drawControl);
             //remove existing drawControl, if there is one
             if (self.drawControl) {
@@ -295,6 +286,7 @@ define ([
                     circle: false                    
                 }
             });
+
             self.map.on('draw:created', function (e) {
                 //add properties
                 //Extremly important to read this: http://stackoverflow.com/questions/29736345/adding-properties-to-a-leaflet-layer-that-will-become-geojson-options
@@ -336,7 +328,7 @@ define ([
             });
             self.map.addControl(self.drawControl);
 			self.renderFromMapDataT();
-        }, */
+        },  */
 		//fires after load data . . . keeps a local array of hidden layers
 		processHiddenLayers() {
 			var self = this;
@@ -449,8 +441,10 @@ define ([
 									self.renderFromMapDataT();
 								break;
 								case "Edit":
+									console.log("this is the one firing");
 									//strip out the edit layer id
 									var el = parseInt($(e.target).parent().attr("id").substring(9));
+									console.log("el:", el);
 									//show if hidden
 									self.hiddenLayers = _.without( self.hiddenLayers, parseInt(layerId) );
 									self.renderFromMapDataT();
@@ -477,12 +471,6 @@ define ([
                     //send the data to leaflet
                     self.overlays[v.id] = L.geoJson(v.geoJson, {
 						filter: function ( feature ) {
-							/* console.log("feature @ filter ftn: ", feature, "v.id:", v.id);
-							if (self.mapData.mapData.layers[i].display == "true") {
-								return true;
-							} else {
-								return false;
-							} */
 							if( self.hiddenLayers.indexOf( parseInt(v.id) ) == -1 ) {
 								return true;
 							} else {

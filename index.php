@@ -54,7 +54,7 @@
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span> 
 				  </button>
-				  <a class="navbar-brand" href="<?php echo BASE_URL?>">WebSiteName</a>
+				  <a class="navbar-brand" href="<?php echo BASE_URL?>">MyTrail.org</a>
 				</div>
 				<div id="myNavbar" role = "navigation" class="collapse navbar-collapse">
 					<ul class="nav navbar-nav topNav">
@@ -90,6 +90,7 @@
 		</div>
         
         <div id="modal"></div>
+		<div id="controlPanel" class='hidden'></div>
         <div id="contentMain">
 		</div>
         <div id="spinnerWrapper">

@@ -2,6 +2,18 @@ body {
 	background-color: #ccc;
 	
 }
+#controlPanel {
+	position: absolute;
+	top: 60px;
+	left: 100px;
+	min-height: 150px;
+	max-height: 150px;
+	width: 275px;
+	z-index: 1000;
+	background-color: #eee;
+	overflow: auto;
+	
+}
 #layersSelect a {
 	background-color: #bbb;
 }
